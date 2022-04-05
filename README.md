@@ -2,8 +2,13 @@
 Common Functions useful to work/plot with Seurat objects
 
 ## How to use it
-Just download the .R file in one folder, and load it at the beginning of your script with:
+Just download the .R file, and load it at the beginning of your script with:
+
+```
 source("Path/of/your/file/CommonFunction.R")
+```
+
+and start using the functions
 
 ## Functions present
 
