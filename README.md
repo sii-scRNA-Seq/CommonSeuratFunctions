@@ -36,7 +36,7 @@ To create
 
 use:
 ```
-VlnPlot.median(object, features, colour = "black", pt.size = 0, ncol = NULL, legend = TRUE)
+VlnPlot.median(Seurat.Object, features, colour = "black", pt.size = 0, ncol = NULL, legend = TRUE)
 ```
 
 
@@ -47,3 +47,11 @@ pt.size = 0         size of the cell dots
 ncol = NULL         n of columns to use for multiple genes plot
 
 legend = TRUE       whether or not show a legend
+
+### Add souporcell clusters.tsv metadata to Seurat
+
+use:
+```
+Seurat.Object = Add.SNPs.HT(Seurat.Object,"Path/of/your/file/clusters.tsv")
+```
+

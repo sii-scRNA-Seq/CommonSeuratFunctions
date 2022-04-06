@@ -45,6 +45,28 @@ VlnPlot.median <- function(object, features, colour = "black", pt.size = 0, ncol
 	wrap_plots(myplots, ncol=ncol)
 	}
 
+Add.SNPs.HT <- function(Seurat.Object, souporcell.file, verbose=FALSE) {
+  #Tris function creates will add your souporcell cluster.tsv file as metadata to a Seurat object 
+  #PBMC = Add.SNPs.HT(PBMC,"Mapped/clusters.tsv")
+  
+  SNPs = read.csv(souporcell.file, sep = "\t")
+  SNPs
+  common_barcode = intersect(colnames(Seurat.Object), SNPs$barcode)
+  print(paste("Number of cells barcoded: ",length(common_barcode)))
+  
+  if (length(common_barcode)/length(colnames(Seurat.Object))<0.5) {
+    warning("Less than 50% barcode found")
+  }
+  rownames(SNPs) <- SNPs$barcode
+  SNPs <- SNPs[, c('status', 'assignment')]
+  SNPs$SNP_cluster <- SNPs$assignment
+  SNPs$assignment <- NULL
+  if (verbose){
+    head(SNPs)  
+  }
+  Seurat.Object <- SeuratObject::AddMetaData(Seurat.Object, SNPs)
+  return(Seurat.Object)
+}
 
 #Generic form
 Unique.Name.Of.Function <- function(Seurat.object, var1, varN){
