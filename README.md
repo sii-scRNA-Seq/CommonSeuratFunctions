@@ -55,3 +55,9 @@ use:
 Seurat.Object = Add.SNPs.HT(Seurat.Object,"Path/of/your/file/clusters.tsv")
 ```
 
+### Add ADT (CITEseq) to Seurat
+
+use:
+```
+Seurat.Object = Add.ADT(Seurat.Object,"Path/of/your/file/umi_count/")
+```
