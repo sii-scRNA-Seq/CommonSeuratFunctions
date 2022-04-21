@@ -50,6 +50,8 @@ legend = TRUE       whether or not show a legend
 
 ### Add souporcell clusters.tsv metadata to Seurat
 
+Souporcell generates a clusters.tsv with the SNPs cluster for each sample.
+
 use:
 ```
 Seurat.Object = Add.SNPs.HT(Seurat.Object,"Path/of/your/file/clusters.tsv")
@@ -57,7 +59,17 @@ Seurat.Object = Add.SNPs.HT(Seurat.Object,"Path/of/your/file/clusters.tsv")
 
 ### Add ADT (CITEseq) to Seurat
 
+CITE-seq-Count tool map the ADT reads and generate a folder named "umi_count" with the data. 
+
 use:
 ```
 Seurat.Object = Add.ADT(Seurat.Object,"Path/of/your/file/umi_count/")
 ```
+
+### Add HTO (CITEseq) to Seurat
+
+CITE-seq-Count tool map the HTO reads and generate a folder named "umi_count" with the data. 
+
+use:
+```
+Seurat.Object = Add.HTO(Seurat.Object,"Path/of/your/file/umi_count/")

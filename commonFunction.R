@@ -135,6 +135,31 @@ Add.ADT <- function(Seurat.object, ADT.folder.path, verbose=FALSE){
   return(Seurat.object)
 }
 
+extract.HTO <- function(path, barcodeWhitelist, minCountPerCell = 5, methods = c("bff_cluster", "multiseq","dropletutils")) {
+	#Use:
+	#> my.HTO.table <- extract.HTO("/mypath/", c("HTO1","HTO6")))
+	library(cellhashR)
+	barcodeData <- ProcessCountMatrix(rawCountData = path, minCountPerCell = minCountPerCell, barcodeWhitelist = barcodeWhitelist)
+	calls.HTO <- GenerateCellHashingCalls(barcodeMatrix = barcodeData, methods = methods)
+
+	HTOtable <- data.frame(row.names = calls.HTO$cellbarcode)
+	HTOtable$HTO <- calls.HTO$consensuscall
+	HTOtable$HTO_status <- calls.HTO$consensuscall.global
+	rownames(HTOtable) <- paste0(rownames(HTOtable),"-1")
+
+	# Inspect negative cells:
+	SummarizeCellsByClassification(calls = calls.HTO, barcodeMatrix = barcodeData)
+	return(HTOtable)
+}
+
+add.HTO <- function(Seurat.object, barcodeWhitelist, minCountPerCell = 5, methods = c("bff_cluster", "multiseq","dropletutils")) {
+	#Add HTO table to your Seurat object
+	#Use:
+	#> Seurat.Object <- (Seurat.object, "/mypath/HTO_folder/", c("HTO1","HTO6")))
+	HTOtable <- extract.HTO(path, barcodeWhitelist, minCountPerCell = minCountPerCell, methods = methods)
+	Seurat.Object <- SeuratObject::AddMetaData(Seurat.Object, HTOtable)
+}
+
 #Generic form
 Unique.Name.Of.Function <- function(Seurat.object, var1, varN){
 	#Describe your function
