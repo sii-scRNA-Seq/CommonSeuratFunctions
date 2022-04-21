@@ -71,9 +71,9 @@ Add.SNPs.HT <- function(Seurat.Object, souporcell.file, verbose=FALSE) {
 }
 
 #Generic form
-Add.ADT <- function(Seurat.object, ADT.folder.path, verbose=FALSE){
+Add.ADT <- function(Seurat.Object, ADT.folder.path, verbose=FALSE){
   #Add ADT table to your Seurat object
-  #Example use: Seurat.Object =  Add.ADT(Seurat.object, ADT.folder.path="your/path/umi_count/") 
+  #Example use: Seurat.Object =  Add.ADT(Seurat.Object, ADT.folder.path="your/path/umi_count/") 
   
   #Read in the ADT library
   ADT.data <- Read10X(ADT.folder.path, gene.column=1)
@@ -81,33 +81,54 @@ Add.ADT <- function(Seurat.object, ADT.folder.path, verbose=FALSE){
   colnames(ADT.data) <- paste0(colnames(ADT.data),"-1")
   
   #Just select the common barcodes
-  common.barcodes <- intersect(colnames(Seurat.object), colnames(ADT.data))
-  print(paste0("Number of cells with ADT: ", length(common.barcodes)))
+  common.barcodes <- intersect(colnames(Seurat.Object), colnames(ADT.data))
+  print(paste0("Number of cells in Seurat with ADT: ", length(common.barcodes)))
+  
+  if (length(common.barcodes)==0) {
+    stop("Stop! No cells have ADT")
+  }
 
-  no.ADT <- setdiff(colnames(Seurat.object), colnames(ADT.data))
+  no.ADT <- setdiff(colnames(Seurat.Object), colnames(ADT.data))
+  extra.ADT <- setdiff(colnames(ADT.data), colnames(Seurat.Object))
+  
+  if (length(extra.ADT)!=0) {
+    ADT.data <- ADT.data[, !colnames(ADT.data) %in% extra.ADT]
+  }
   
   if (verbose==TRUE) {
-    print(length(no.ADT))
-    print(ncol(Seurat.object))
-    print(ncol(ADT.data))
+    print(paste0("Number of cells in Seurat: ",ncol(Seurat.Object)))
+    print(paste0("Number of cells in ADT: ",ncol(ADT.data)))
     print(head(ADT.data))
-    print(typeof(ADT.data))
+    print(paste0("Number of cells in without any ADT: ",length(no.ADT)))
   }
   
-  #create matrix with 4 columns
-  no.ADT.table <- matrix(rep(0, times=nrow(ADT.data)*length(no.ADT)), ncol=length(no.ADT), byrow=TRUE)
+  if (length(no.ADT)!=0) {
   
-  #define column names and row names of matrix
-  colnames(no.ADT.table) <- no.ADT
-  rownames(no.ADT.table) <- rownames(ADT.data)
-
-  if (verbose==TRUE) {
-    print(ncol(no.ADT.table))
-    print(head(no.ADT.table))
-    print(typeof(no.ADT.table))
+    #create matrix with 4 columns
+    no.ADT.table <- matrix(rep(0, times=nrow(ADT.data)*length(no.ADT)), ncol=length(no.ADT), byrow=TRUE)
+    
+    if (verbose==TRUE) {
+      print(head(no.ADT.table))
+    }
+    
+    #define column names and row names of matrix
+    colnames(no.ADT.table) <- no.ADT
+    rownames(no.ADT.table) <- rownames(ADT.data)
+  
+    if (verbose==TRUE) {
+      print(ncol(no.ADT.table))
+      print(head(no.ADT.table))
+      print(typeof(no.ADT.table))
+    }
+    
+    ADT.final <- cbind(ADT.data, no.ADT.table)
+    
+    if (verbose==TRUE) {
+      print(ncol(ADT.final))
+    }
+  } else {
+    ADT.final=ADT.data
   }
-  
-  ADT.final <- cbind(ADT.data, no.ADT.table)
   
   ## ADT preparation
   #For ADT remove unmapped
@@ -128,18 +149,21 @@ Add.ADT <- function(Seurat.object, ADT.folder.path, verbose=FALSE){
   print(head(ADT.data.filtered))
   
   #Add the ADT as an independent assay, before to subset
-  Seurat.object[["ADT"]] <- CreateAssayObject(counts = ADT.data.filtered)
+  Seurat.Object[["ADT"]] <- CreateAssayObject(counts = ADT.data.filtered)
   # Normalize ADT data, here we use centered log-ratio (CLR) transformation
-  Seurat.object <- NormalizeData(Seurat.object, assay = "ADT", normalization.method = "CLR", margin = 2)
+  Seurat.Object <- NormalizeData(Seurat.Object, assay = "ADT", normalization.method = "CLR", margin = 2)
   
-  return(Seurat.object)
+  return(Seurat.Object)
 }
 
 extract.HTO <- function(path, barcodeWhitelist, minCountPerCell = 5, methods = c("bff_cluster", "multiseq","dropletutils")) {
 	#Use:
 	#> my.HTO.table <- extract.HTO("/mypath/", c("HTO1","HTO6")))
 	library(cellhashR)
+  
+  print("Process Count Matrix...")
 	barcodeData <- ProcessCountMatrix(rawCountData = path, minCountPerCell = minCountPerCell, barcodeWhitelist = barcodeWhitelist)
+	print("Generate Cell Hashing Calls...")
 	calls.HTO <- GenerateCellHashingCalls(barcodeMatrix = barcodeData, methods = methods)
 
 	HTOtable <- data.frame(row.names = calls.HTO$cellbarcode)
@@ -148,22 +172,24 @@ extract.HTO <- function(path, barcodeWhitelist, minCountPerCell = 5, methods = c
 	rownames(HTOtable) <- paste0(rownames(HTOtable),"-1")
 
 	# Inspect negative cells:
+	print("Summarize Cells By Classification...")
 	SummarizeCellsByClassification(calls = calls.HTO, barcodeMatrix = barcodeData)
 	return(HTOtable)
 }
 
-add.HTO <- function(Seurat.object, barcodeWhitelist, minCountPerCell = 5, methods = c("bff_cluster", "multiseq","dropletutils")) {
+Add.HTO <- function(Seurat.Object, path, barcodeWhitelist, minCountPerCell = 5, methods = c("bff_cluster", "multiseq","dropletutils")) {
 	#Add HTO table to your Seurat object
 	#Use:
-	#> Seurat.Object <- (Seurat.object, "/mypath/HTO_folder/", c("HTO1","HTO6")))
+	#> Seurat.Object <- (Seurat.Object, "/mypath/HTO_folder/", c("HTO1","HTO6")))
 	HTOtable <- extract.HTO(path, barcodeWhitelist, minCountPerCell = minCountPerCell, methods = methods)
 	Seurat.Object <- SeuratObject::AddMetaData(Seurat.Object, HTOtable)
+	return(Seurat.Object)
 }
 
 #Generic form
-Unique.Name.Of.Function <- function(Seurat.object, var1, varN){
+Unique.Name.Of.Function <- function(Seurat.Object, var1, varN){
 	#Describe your function
-	#Example use: Unique.Name.Of.Function(Seurat.object, "var1", "var2") 
+	#Example use: Unique.Name.Of.Function(Seurat.Object, "var1", "var2") 
 	
 	#Describe the code
 	}
