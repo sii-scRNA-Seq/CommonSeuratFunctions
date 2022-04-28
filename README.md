@@ -29,6 +29,8 @@ e.g
 ProportionPlot(PBMC, "seurat_cluster", "Condition")
 ```
 
+---
+
 ### Violin Plot + Median
 To create
 
@@ -47,6 +49,8 @@ ncol = NULL         n of columns to use for multiple genes plot
 
 legend = TRUE       whether or not show a legend
 
+---
+
 ### Add souporcell clusters.tsv metadata to Seurat
 
 Souporcell generates a clusters.tsv with the SNPs cluster for each sample.
@@ -55,6 +59,8 @@ use:
 ```
 Seurat.Object = Add.SNPs.HT(Seurat.Object,"Path/of/your/file/clusters.tsv")
 ```
+
+---
 
 ### Calculate and Add ADT (CITEseq) to Seurat
 
@@ -66,6 +72,8 @@ use:
 Seurat.Object = Add.ADT(Seurat.Object,"Path/of/your/file/umi_count/", replace.any=c("OLD_NAME"="NEW_NAME"))
 ```
 
+---
+
 ### Calculate and Add HTO (CITEseq) to Seurat (using cellhashR)
 
 Use CITE-seq-Count tool to map the HTO reads and generate a folder named "umi_count" with the data. 
@@ -76,6 +84,8 @@ use:
 Seurat.Object = Add.HTO(Seurat.Object,"Path/of/your/file/umi_count/")
 ```
 
+---
+
 ### Use SoupX to clean cellranger matrix from Ambient RNA contaminat
 
 You need "filtered_feature_bc_matrix", "raw_feature_bc_matrix", and "analysis" folders to use SoupX. You use this instead of Read10X function.
@@ -84,6 +94,8 @@ use:
 ```
 clean.data = SoupX.clean(cellranger.folder="/my/cellranger/folder/")
 ```
+
+---
 
 ### Create a Seurat.object cleaned with SoupX, starting from a Seurat.object
 
