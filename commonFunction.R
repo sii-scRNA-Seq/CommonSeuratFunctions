@@ -1,8 +1,10 @@
 #This is a collection of functions useful for Seurat objects.
 
-ProportionPlot <- function(object, name1, name2){
+ProportionPlot <- function(object, name1, name2, cols=NULL){
 	#Tris function creates Proportion plot in % for two variables in the seurat object 
 	#Example use: ProportionPlot(PBMC, "cluster", "Celltype") 
+  ##if you want to change colours use:
+  # ...cols = c("CLEC10Ahigh"="dodgerblue1","ICAM1+"="limegreen","ID2+"="deepskyblue","ISG15+"="mediumorchid","LYVE1+"="aquamarine3", "S100A12+"="deeppink","SPP1+"="firebrick1","TREM2high"="darkolivegreen3","TREM2low"="orange2"))
 	
 	#Get number of cells per cluster
 	slot.metadata = slot(object, "meta.data")
@@ -10,13 +12,16 @@ ProportionPlot <- function(object, name1, name2){
 
 	#Convert to proportion/percentage of total cells in each sample
 	clust.prop.group <- as.data.frame(prop.table(x = clust.table.group, margin = 2))
-
-	#Plot as stacked bar plot
-	ggplot(data=clust.prop.group, aes(x=Var2, y=Freq, fill=Var1)) + theme_linedraw() +
-	geom_bar(stat="identity", color="black") + labs(x=name2, y="Proportion of Cells", fill=name1)
-
-	#if you want to change colours use:
-	# + scale_fill_manual("legend", values = c("CLEC10Ahigh"="dodgerblue1","ICAM1+"="limegreen","ID2+"="deepskyblue","ISG15+"="mediumorchid","LYVE1+"="aquamarine3", "S100A12+"="deeppink","SPP1+"="firebrick1","TREM2high"="darkolivegreen3","TREM2low"="orange2"))
+  
+	if (is.null(cols)==TRUE) {
+  	#Plot as stacked bar plot
+  	ggplot(data=clust.prop.group, aes(x=Var2, y=Freq, fill=Var1)) + theme_linedraw() +
+  	geom_bar(stat="identity", color="black") + labs(x=name2, y="Proportion of Cells", fill=name1)
+	} else {
+	  ggplot(data=clust.prop.group, aes(x=Var2, y=Freq, fill=Var1)) + theme_linedraw() +
+	    geom_bar(stat="identity", color="black") + labs(x=name2, y="Proportion of Cells", fill=name1) + 
+	    scale_fill_manual("legend", values = cols)
+	  }
 	}
 
 #This is part of VlnPlot.median function
@@ -62,7 +67,9 @@ Add.SNPs.HT <- function(Seurat.Object, souporcell.file, verbose=FALSE) {
   rownames(SNPs) <- SNPs$barcode
   SNPs <- SNPs[, c('status', 'assignment')]
   SNPs$SNP_cluster <- SNPs$assignment
+  SNPs$SNP_status <- SNPs$status
   SNPs$assignment <- NULL
+  SNPs$status <- NULL
   if (verbose){
     head(SNPs)  
   }
@@ -71,9 +78,9 @@ Add.SNPs.HT <- function(Seurat.Object, souporcell.file, verbose=FALSE) {
 }
 
 #Generic form
-Add.ADT <- function(Seurat.Object, ADT.folder.path, verbose=FALSE){
+Add.ADT <- function(Seurat.Object, ADT.folder.path, replace.any=FALSE, verbose=FALSE){
   #Add ADT table to your Seurat object
-  #Example use: Seurat.Object =  Add.ADT(Seurat.Object, ADT.folder.path="your/path/umi_count/") 
+  #Example use: Seurat.Object =  Add.ADT(Seurat.Object, ADT.folder.path="your/path/umi_count/",replace.any=c("HLA"="MHCII")) 
   
   #Read in the ADT library
   ADT.data <- Read10X(ADT.folder.path, gene.column=1)
@@ -136,14 +143,15 @@ Add.ADT <- function(Seurat.Object, ADT.folder.path, verbose=FALSE){
   #Remove barcode from the name (they are separated with an "-")
   rownames(ADT.data.filtered) = sapply(strsplit(rownames(ADT.data.filtered),"-"), '[', 1)
   
-  # #Replace a ADT name with another (in this example with "MHCII")
-  # rownames(ADT1.data.b.filtered)
-  # if (rownames(ADT1.data.b.filtered)[23]=="HLA") {
-  #   rownames(ADT1.data.b.filtered)[23] <- "MHCII"
-  # } else {
-  #   stop("MHCII is not 23rd position")
-  # }
-  # rownames(ADT1.data.b.filtered)
+  #Replace a ADT name with another
+  if (replace.any!=FALSE) {
+    print("Replacing ADT names...")
+    for (i in 1:length(replace.any))
+    if (any(rownames(ADT.data.filtered)==names(replace.any[i]))) {
+      pos = grep(names(replace.any[i]), rownames(ADT.data.filtered))
+      rownames(ADT.data.filtered)[pos] <- replace.any[[i]]
+    }
+  }
   
   print(barplot(rowSums(ADT.data.filtered), main = "ADT total reads", las=2))
   print(head(ADT.data.filtered))
@@ -184,6 +192,99 @@ Add.HTO <- function(Seurat.Object, path, barcodeWhitelist, minCountPerCell = 5, 
 	HTOtable <- extract.HTO(path, barcodeWhitelist, minCountPerCell = minCountPerCell, methods = methods)
 	Seurat.Object <- SeuratObject::AddMetaData(Seurat.Object, HTOtable)
 	return(Seurat.Object)
+}
+
+SoupX.clean.from.CellRanger <- function(cellranger.folder) {
+  library(SoupX)
+  #Clean your scRNAseq data from ambient contamination
+  #Use:
+  #clean.data = SoupX.clean(cellranger.folder="/my/cellranger/folder/")
+  
+  if (dir.exists(paste(cellranger.folder,"filtered_feature_bc_matrix",sep = "/"))==FALSE){
+    stop("filtered_feature_bc_matrix folder didn't find")
+  }
+  
+  if (dir.exists(paste(cellranger.folder,"raw_feature_bc_matrix",sep = "/"))==FALSE){
+    stop("raw_feature_bc_matrix folder didn't find")
+  }
+  
+  if (dir.exists(paste(cellranger.folder,"analysis",sep = "/"))==FALSE){
+    stop("analysis folder didn't find")
+  }
+  
+  #Load data
+  sc = load10X(cellranger.folder)
+  #Estimante the contamination
+  sc = autoEstCont(sc)
+  
+  print("Genes with highest expression in background:")
+  print(head(sc$soupProfile[order(sc$soupProfile$est, decreasing = T), ], n = 20))
+  
+  #Filterout the contamination
+  out = adjustCounts(sc)
+  return(out)
+}
+
+SoupX.on.Seurat <- function(Seurat.object, cellranger.folder, min.cells = 5, min.features = 50) {
+  library(SoupX)
+  library(Seurat)
+  #Clean your scRNAseq data from ambient contamination
+  #Seurat object should be UNFILTERED (MT genes and doublets), and seurat_clusters should be present
+  #Use:
+  #clean.data = SoupX.on.Seurat(Seurat.object, cellranger.folder="/my/cellranger/folder/")
+  
+  if (dir.exists(paste(cellranger.folder,"filtered_feature_bc_matrix",sep = "/"))==FALSE){
+    stop("filtered_feature_bc_matrix folder didn't find")
+  }
+  
+  if (dir.exists(paste(cellranger.folder,"raw_feature_bc_matrix",sep = "/"))==FALSE){
+    stop("raw_feature_bc_matrix folder didn't find")
+  }
+  
+  if (any(colnames(Seurat.object@meta.data) == "seurat_clusters")) {
+    print("seurat_clusters present...")
+  } else {
+    stop("seurat_clusters not present")
+  }
+  
+  raw.matrix = Seurat::Read10X(paste(cellranger.folder,"raw_feature_bc_matrix",sep = "/"))
+  filt.matrix = Seurat::Read10X(paste(cellranger.folder,"filtered_feature_bc_matrix",sep = "/"))
+  
+  sc  <- SoupChannel(raw.matrix, filt.matrix)
+  
+  meta    <- Seurat.object@meta.data
+  umap    <- Seurat.object@reductions$umap@cell.embeddings
+  sc  <- setClusters(sc, setNames(meta$seurat_clusters, rownames(meta)))
+  sc  <- setDR(sc, umap)
+  head(meta)
+  
+  #With defined clusters, run the main SoupX function, calculating ambient RNA profile.
+  sc  <- autoEstCont(sc)
+  
+  print("Genes with highest expression in background:")
+  print(head(sc$soupProfile[order(sc$soupProfile$est, decreasing = T), ], n = 20))
+  
+  adj.matrix = adjustCounts(sc, roundToInt = T)
+  
+  New.Seurat.object = CreateSeuratObject(counts = adj.matrix, min.cells = 5, min.features = 50, meta.data = meta)
+  return(New.Seurat.object)
+}
+
+make.cell.metadata.and.add <- function(Seurat.Object, metadata){
+  #Describe your function
+  #Example use: Unique.Name.Of.Function(Seurat.Object, "var1", "var2") 
+  
+  #You need to associate each cell to the right metadata.
+  new_df <- data.frame(row.names = colnames(Seurat.Object))
+  
+  for (name in colnames(metadata)) {
+    #print(name)
+    new_df[name]=metadata[name]
+  }
+  #print(new_df)
+  #Finally add to the object
+  Seurat.Object <- AddMetaData(Seurat.Object, metadata = new_df)
+  return(Seurat.Object)
 }
 
 #Generic form

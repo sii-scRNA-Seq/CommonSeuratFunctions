@@ -39,7 +39,6 @@ use:
 VlnPlot.median(Seurat.Object, features, colour = "black", pt.size = 0, ncol = NULL, legend = TRUE)
 ```
 
-
 colour = "black"    Is the color of the median dot
 
 pt.size = 0         size of the cell dots
@@ -57,19 +56,43 @@ use:
 Seurat.Object = Add.SNPs.HT(Seurat.Object,"Path/of/your/file/clusters.tsv")
 ```
 
-### Add ADT (CITEseq) to Seurat
+### Calculate and Add ADT (CITEseq) to Seurat
 
-CITE-seq-Count tool map the ADT reads and generate a folder named "umi_count" with the data. 
+CITE-seq-Count tool map the ADT reads and generate a folder named "umi_count" with the data.
+You can also replace some ADT names with others 
 
 use:
 ```
-Seurat.Object = Add.ADT(Seurat.Object,"Path/of/your/file/umi_count/")
+Seurat.Object = Add.ADT(Seurat.Object,"Path/of/your/file/umi_count/", replace.any=c("OLD_NAME"="NEW_NAME"))
 ```
 
-### Add HTO (CITEseq) to Seurat
+### Calculate and Add HTO (CITEseq) to Seurat (using cellhashR)
 
-CITE-seq-Count tool map the HTO reads and generate a folder named "umi_count" with the data. 
+Use CITE-seq-Count tool to map the HTO reads and generate a folder named "umi_count" with the data. 
+This function use cellhashR to deconvolute the hashtag information and add it to your seurat object
 
 use:
 ```
 Seurat.Object = Add.HTO(Seurat.Object,"Path/of/your/file/umi_count/")
+```
+
+### Use SoupX to clean cellranger matrix from Ambient RNA contaminat
+
+You need "filtered_feature_bc_matrix", "raw_feature_bc_matrix", and "analysis" folders to use SoupX. You use this instead of Read10X function.
+
+use:
+```
+clean.data = SoupX.clean(cellranger.folder="/my/cellranger/folder/")
+```
+
+### Create a Seurat.object cleaned with SoupX, starting from a Seurat.object
+
+Starting from a Seurat.object, it will clean it (using SoupX) and generates another Seurat.object.
+
+You need "filtered_feature_bc_matrix", "raw_feature_bc_matrix" folders (not "analysis")  from Cellranger. 
+
+Seurat object need to have "seurat_clusters", and need to be UNFILTERED!! (don't remove doublets, high MT cells, and so on).
+
+```
+Seurat.object.clean <- SoupX.on.Seurat(Seurat.object, cellranger.folder)
+```
