@@ -41,15 +41,15 @@ VlnPlot.median <- function(object, features, colour = "black", pt.size = 0, ncol
 	for (gene in features) {
 		#print(gene)
 		if (legend == TRUE) {
-		myplots[[gene]] <- VlnPlot(object = object, features = gene, pt.size = pt.size) +
+		myplots[[gene]] <- Seurat::VlnPlot(object = object, features = gene, pt.size = pt.size) +
 		stat_summary(fun = median.stat, geom='point', size = 1, colour = colour)
 		} else {
-		myplots[[gene]] <- VlnPlot(object = object, features = gene, pt.size = pt.size) +
+		myplots[[gene]] <- Seurat::VlnPlot(object = object, features = gene, pt.size = pt.size) +
 		stat_summary(fun = median.stat, geom='point', size = 1, colour = colour) + NoLegend()
 		}
 	}
 	#patchwork function to combine multiple plots
-	wrap_plots(myplots, ncol=ncol)
+	patchwork::wrap_plots(myplots, ncol=ncol)
 	}
 
 Add.SNPs.HT <- function(Seurat.Object, souporcell.file, verbose=FALSE) {
@@ -83,7 +83,7 @@ Add.ADT <- function(Seurat.Object, ADT.folder.path, replace.any=FALSE, verbose=F
   #Example use: Seurat.Object =  Add.ADT(Seurat.Object, ADT.folder.path="your/path/umi_count/",replace.any=c("HLA"="MHCII")) 
   
   #Read in the ADT library
-  ADT.data <- Read10X(ADT.folder.path, gene.column=1)
+  ADT.data <- Seurat::Read10X(ADT.folder.path, gene.column=1)
   #Add "-1"
   colnames(ADT.data) <- paste0(colnames(ADT.data),"-1")
   
@@ -157,9 +157,9 @@ Add.ADT <- function(Seurat.Object, ADT.folder.path, replace.any=FALSE, verbose=F
   print(head(ADT.data.filtered))
   
   #Add the ADT as an independent assay, before to subset
-  Seurat.Object[["ADT"]] <- CreateAssayObject(counts = ADT.data.filtered)
+  Seurat.Object[["ADT"]] <- SeuratObject::CreateAssayObject(counts = ADT.data.filtered)
   # Normalize ADT data, here we use centered log-ratio (CLR) transformation
-  Seurat.Object <- NormalizeData(Seurat.Object, assay = "ADT", normalization.method = "CLR", margin = 2)
+  Seurat.Object <- Seurat::NormalizeData(Seurat.Object, assay = "ADT", normalization.method = "CLR", margin = 2)
   
   return(Seurat.Object)
 }
@@ -167,12 +167,11 @@ Add.ADT <- function(Seurat.Object, ADT.folder.path, replace.any=FALSE, verbose=F
 extract.HTO <- function(path, barcodeWhitelist, minCountPerCell = 5, methods = c("bff_cluster", "multiseq","dropletutils")) {
 	#Use:
 	#> my.HTO.table <- extract.HTO("/mypath/", c("HTO1","HTO6")))
-	library(cellhashR)
   
   print("Process Count Matrix...")
-	barcodeData <- ProcessCountMatrix(rawCountData = path, minCountPerCell = minCountPerCell, barcodeWhitelist = barcodeWhitelist)
+	barcodeData <- cellhashR::ProcessCountMatrix(rawCountData = path, minCountPerCell = minCountPerCell, barcodeWhitelist = barcodeWhitelist)
 	print("Generate Cell Hashing Calls...")
-	calls.HTO <- GenerateCellHashingCalls(barcodeMatrix = barcodeData, methods = methods)
+	calls.HTO <- cellhashR::GenerateCellHashingCalls(barcodeMatrix = barcodeData, methods = methods)
 
 	HTOtable <- data.frame(row.names = calls.HTO$cellbarcode)
 	HTOtable$HTO <- calls.HTO$consensuscall
@@ -181,7 +180,7 @@ extract.HTO <- function(path, barcodeWhitelist, minCountPerCell = 5, methods = c
 
 	# Inspect negative cells:
 	print("Summarize Cells By Classification...")
-	SummarizeCellsByClassification(calls = calls.HTO, barcodeMatrix = barcodeData)
+	cellhashR::SummarizeCellsByClassification(calls = calls.HTO, barcodeMatrix = barcodeData)
 	return(HTOtable)
 }
 
@@ -195,7 +194,6 @@ Add.HTO <- function(Seurat.Object, path, barcodeWhitelist, minCountPerCell = 5, 
 }
 
 SoupX.clean.from.CellRanger <- function(cellranger.folder) {
-  library(SoupX)
   #Clean your scRNAseq data from ambient contamination
   #Use:
   #clean.data = SoupX.clean(cellranger.folder="/my/cellranger/folder/")
@@ -213,25 +211,23 @@ SoupX.clean.from.CellRanger <- function(cellranger.folder) {
   }
   
   #Load data
-  sc = load10X(cellranger.folder)
+  sc = SoupX::load10X(cellranger.folder)
   #Estimante the contamination
-  sc = autoEstCont(sc)
+  sc = SoupX::autoEstCont(sc)
   
   print("Genes with highest expression in background:")
   print(head(sc$soupProfile[order(sc$soupProfile$est, decreasing = T), ], n = 20))
   
   #Filterout the contamination
-  out = adjustCounts(sc)
+  out = SoupX::adjustCounts(sc)
   return(out)
 }
 
 SoupX.on.Seurat <- function(Seurat.object, cellranger.folder, min.cells = 5, min.features = 50) {
-  library(SoupX)
-  library(Seurat)
   #Clean your scRNAseq data from ambient contamination
   #Seurat object should be UNFILTERED (MT genes and doublets), and seurat_clusters should be present
   #Use:
-  #clean.data = SoupX.on.Seurat(Seurat.object, cellranger.folder="/my/cellranger/folder/")
+  #clean.data = SoupX.clean(cellranger.folder="/my/cellranger/folder/")
   
   if (dir.exists(paste(cellranger.folder,"filtered_feature_bc_matrix",sep = "/"))==FALSE){
     stop("filtered_feature_bc_matrix folder didn't find")
@@ -250,40 +246,70 @@ SoupX.on.Seurat <- function(Seurat.object, cellranger.folder, min.cells = 5, min
   raw.matrix = Seurat::Read10X(paste(cellranger.folder,"raw_feature_bc_matrix",sep = "/"))
   filt.matrix = Seurat::Read10X(paste(cellranger.folder,"filtered_feature_bc_matrix",sep = "/"))
   
-  sc  <- SoupChannel(raw.matrix, filt.matrix)
+  sc  <- SoupX::SoupChannel(raw.matrix, filt.matrix)
   
   meta    <- Seurat.object@meta.data
   umap    <- Seurat.object@reductions$umap@cell.embeddings
-  sc  <- setClusters(sc, setNames(meta$seurat_clusters, rownames(meta)))
-  sc  <- setDR(sc, umap)
+  sc  <- SoupX::setClusters(sc, setNames(meta$seurat_clusters, rownames(meta)))
+  sc  <- SoupX::setDR(sc, umap)
   head(meta)
   
   #With defined clusters, run the main SoupX function, calculating ambient RNA profile.
-  sc  <- autoEstCont(sc)
+  sc  <- SoupX::autoEstCont(sc)
   
   print("Genes with highest expression in background:")
   print(head(sc$soupProfile[order(sc$soupProfile$est, decreasing = T), ], n = 20))
   
-  adj.matrix = adjustCounts(sc, roundToInt = T)
+  adj.matrix = SoupX::adjustCounts(sc, roundToInt = T)
   
-  New.Seurat.object = CreateSeuratObject(counts = adj.matrix, min.cells = 5, min.features = 50, meta.data = meta)
+  New.Seurat.object = Seurat::CreateSeuratObject(counts = adj.matrix, min.cells = 5, min.features = 50, meta.data = meta)
   return(New.Seurat.object)
 }
 
-make.cell.metadata.and.add <- function(Seurat.Object, metadata){
-  #Describe your function
-  #Example use: Unique.Name.Of.Function(Seurat.Object, "var1", "var2") 
+make.add.meta <- function(Seurat.Object, metadata) {
+  #From a metadata table and a Seurat.Object, 
+  #it creates a proper metadata table with cell barcodeID and add it to Seurat.object 
+  # Use:
+  # Seurat.object = make.add.meta(Seurat.Object, metadata)
   
-  #You need to associate each cell to the right metadata.
-  new_df <- data.frame(row.names = colnames(Seurat.Object))
-  
-  for (name in colnames(metadata)) {
-    #print(name)
-    new_df[name]=metadata[name]
+  if (nrow(metadata)==1) {
+    df.cells <- data.frame(row.names = colnames(Seurat.Object))
+    for (name in colnames(metadata)) {
+      #print(name)
+      df.cells[name]=metadata[name]
+    }
+  } else {
+    #check if length of idents is different of lenght metadata
+    if (length(setdiff(Idents(Seurat.Object), rownames(metadata)))==0) {
+      stop("Seurat object Idents and metadata rows are not matching.")
+    }
+    
+    df.cells <- data.frame()
+    
+    #Select the Idents matching “Name” in metadata
+    #Idents(Seurat.Object) <- "Condition_name"
+    
+    #For each idents within the seurat object (cluster or sample you want)
+    for (name in unique(Idents(Seurat.Object)))
+    {
+      print(name)
+      
+      #Select the cells and put them in another df
+      new_df <- data.frame(row.names = WhichCells(Seurat.Object, idents = name))
+      
+      #Select the row of interest from metadata, corresponding to the metadata to add to those cells
+      meta_row=metadata[rownames(metadata) == name,]
+      for (col_name in colnames(meta_row)){
+        #add the specific metadata you need
+        new_df[col_name]=meta_row[col_name]
+      }
+      #merge in a big df
+      df.cells=dplyr::bind_rows(df.cells, new_df)
+    }
   }
-  #print(new_df)
+  
   #Finally add to the object
-  Seurat.Object <- AddMetaData(Seurat.Object, metadata = new_df)
+  Seurat.Object <- AddMetaData(Seurat.Object, metadata = df.cells)
   return(Seurat.Object)
 }
 
@@ -291,8 +317,9 @@ make.cell.metadata.and.add <- function(Seurat.Object, metadata){
 Unique.Name.Of.Function <- function(Seurat.Object, var1, varN){
 	#Describe your function
 	#Example use: Unique.Name.Of.Function(Seurat.Object, "var1", "var2") 
-	
+  
 	#Describe the code
+  #Code
 	}
 
 
