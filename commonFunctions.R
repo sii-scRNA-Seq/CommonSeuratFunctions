@@ -272,6 +272,7 @@ make.add.meta <- function(Seurat.Object, metadata) {
   # Use:
   # Seurat.object = make.add.meta(Seurat.Object, metadata)
   
+  #if there is only 1 row, add it to the whole Seurat.Object
   if (nrow(metadata)==1) {
     df.cells <- data.frame(row.names = colnames(Seurat.Object))
     for (name in colnames(metadata)) {
@@ -280,7 +281,7 @@ make.add.meta <- function(Seurat.Object, metadata) {
     }
   } else {
     #check if length of idents is different of lenght metadata
-    if (length(setdiff(Idents(Seurat.Object), rownames(metadata)))==0) {
+    if (length(setdiff(Idents(Seurat.Object), rownames(metadata)))!=0 || length(setdiff(rownames(metadata),Idents(Seurat.Object)))!=0) {
       stop("Seurat object Idents and metadata rows are not matching.")
     }
     
