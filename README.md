@@ -5,7 +5,7 @@ Common Functions useful to work/plot with Seurat objects
 Just download the .R file, and load it at the beginning of your script with:
 
 ```
-source("Path/of/your/file/CommonFunction.R")
+source("Path/of/your/file/CommonFunctions.R")
 ```
 
 and start using the functions
@@ -107,4 +107,16 @@ Seurat object need to have "seurat_clusters", and need to be UNFILTERED!! (don't
 
 ```
 Seurat.object.clean <- SoupX.on.Seurat(Seurat.object, cellranger.folder)
+```
+
+### Add metadata to your seurat object
+
+Starting from a seurat object and a metadata table, 
+
+this function creates a proper metadata table with cell barcodeID and add it to Seurat.object.
+
+Of course table rownames MUST match Seurat.object Idents. 
+
+```
+Seurat.object <- make.add.meta(Seurat.object, Seurat.object)
 ```
