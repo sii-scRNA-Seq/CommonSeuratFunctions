@@ -109,6 +109,8 @@ Seurat object need to have "seurat_clusters", and need to be UNFILTERED!! (don't
 Seurat.object.clean <- SoupX.on.Seurat(Seurat.object, cellranger.folder)
 ```
 
+---
+
 ### Add metadata to your seurat object
 
 Starting from a seurat object and a metadata table, 
@@ -119,4 +121,63 @@ Of course table rownames MUST match Seurat.object Idents.
 
 ```
 Seurat.object <- make.add.meta(Seurat.object, Seurat.object)
+```
+
+---
+
+### Read BD Rhapsody folder
+
+Starting from a BD Rhapsody mapping folder, this function read it and create a seurat object
+
+At the moment it works using DBEC MolPerCell, to implement RSEC
+
+use:
+
+```
+Read.BD.Rhap(path, project.name="BD Rhapsody", remove.multiplets = TRUE, remove.undetermined=TRUE,  min.cells = 3, min.features = 20, show.plots=TRUE, verbose=FALSE)
+```
+
+path 							folder path
+
+project.name="BD Rhapsody"		Seurat object folder name
+
+remove.multiplets = TRUE		whether remove or not multiplets
+
+remove.undetermined = TRUE		whether remove or not undetermined
+
+min.cells = 3					min number of cells to keep a feature
+
+min.features = 20 				min number of features to keep a cell
+
+show.plots = TRUE				whether show or not some readcounts plot
+---
+
+### Read BD Rhapsody file
+
+Starting from a BD Rhapsody MolPerCell folder, this function read it and create a seurat object
+
+This function does NOT read the SampleTag file, so it's not able to associate each cell with a sample tag
+
+```
+Read.BD.Rhap.simple <- function(MolsPerCell.file, project.name="BD Rhapsody", min.cells = 3, min.features = 20, show.plots=TRUE, verbose=FALSE)
+```
+
+MolsPerCell.file 				file path
+
+project.name="BD Rhapsody"		Seurat object folder name
+
+min.cells = 3					min number of cells to keep a feature
+
+min.features = 20 				min number of features to keep a cell
+
+show.plots = TRUE				whether show or not some readcounts plot
+
+---
+
+### Plot Depth of sequencing
+
+Starting from a seurat object, plot the depth  of sequencing (splitted for a specific metadata column) 
+
+```
+plot.depth.seq(Seurat.object, metadata.col)
 ```

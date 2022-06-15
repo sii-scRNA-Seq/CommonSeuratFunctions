@@ -1,4 +1,6 @@
 #This is a collection of functions useful for Seurat objects.
+#To load it run:
+#source("commonFunctions.R")
 
 ProportionPlot <- function(object, name1, name2, cols=NULL){
 	#Tris function creates Proportion plot in % for two variables in the seurat object 
@@ -57,7 +59,6 @@ Add.SNPs.HT <- function(Seurat.Object, souporcell.file, verbose=FALSE) {
   #PBMC = Add.SNPs.HT(PBMC,"Mapped/clusters.tsv")
   
   SNPs = read.csv(souporcell.file, sep = "\t")
-  SNPs
   common_barcode = intersect(colnames(Seurat.Object), SNPs$barcode)
   print(paste("Number of cells barcoded: ",length(common_barcode)))
   
@@ -312,6 +313,110 @@ make.add.meta <- function(Seurat.Object, metadata) {
   #Finally add to the object
   Seurat.Object <- AddMetaData(Seurat.Object, metadata = df.cells)
   return(Seurat.Object)
+}
+
+Read.BD.Rhap <- function(path, project.name="BD Rhapsody", remove.multiplets = TRUE, remove.undetermined=TRUE,  min.cells = 3, min.features = 20, show.plots=TRUE, verbose=FALSE) {
+  # path = folder containing DBEC_MolsPerCell and SampleTag files from 7B
+  # TO DO: implement RSEC
+  # See https://scomix.bd.com/hc/en-us/articles/360044971032-Bioinformatics
+  
+  fileList <- list.files(path=path)
+  
+  #Keep only files of interest (i.e. those which contain UMInormalized counts and are sample tagged)
+  print("Reading files...")
+  DBEC.file <- fileList[grepl("DBEC_MolsPerCell", fileList)]
+  #RSEC.file <- fileList[grepl("RSEC_MolsPerCell", fileList)]  
+  sampleTag.file<- fileList[grepl("Sample_Tag", fileList)]
+  
+  count <- read.csv(file = paste(path, DBEC.file, sep="/"), sep = ',', header = TRUE, row.names = 1, check.names = FALSE, comment.char = "#")
+  
+  #traspose gene/cells
+  count <- t(count)
+  if (verbose) {
+    print("Counts rownames:")
+    print(head(rownames(count)))
+    print("Counts colnames:")
+    print(head(colnames(count)))
+  }
+  
+  #Read sampleTag
+  ST <- read.csv(file = paste(path, sampleTag.file, sep="/"), sep = ',', header = TRUE, row.names = 1, check.names = FALSE, comment.char = "#")
+  if (verbose) {
+    print(sampleTag.file)
+    print("SampleTag:")
+    print(head(ST))
+  }
+  
+  #Create Seurat
+  Seurat.object <- CreateSeuratObject(counts = count, min.cells = min.cells, min.features = min.features, project = project.name)
+  Seurat.object = AddMetaData(Seurat.object, ST)
+  Seurat.object@meta.data$file <- sampleTag.file
+  print(Seurat.object)
+  
+  Idents(Seurat.object) <- "Sample_Name"
+  if (show.plots==TRUE){
+    print(qplot(Seurat.object$Sample_Name, main=project.name))
+  }
+  
+  if (remove.multiplets==TRUE){
+    print("Removing Multiplets...")
+    Seurat.object = subset(Seurat.object, idents = "Multiplet", invert = TRUE)
+  }
+  if (remove.multiplets==TRUE){
+    print("Removing Undetermined")
+    Seurat.object = subset(Seurat.object, idents ="Undetermined", invert = TRUE)
+  }
+  if (show.plots==TRUE){
+    hist(colSums(Seurat.object@assays$RNA@counts), main=project.name, breaks = 50)
+  }
+  return(Seurat.object)
+}
+
+Read.BD.Rhap.simple <- function(MolsPerCell.file, project.name="BD Rhapsody", min.cells = 3, min.features = 20, show.plots=TRUE, verbose=FALSE) {
+  # MolsPerCell.file = file containing MolsPerCell and SampleTag files from 7B
+  
+  #Keep only files of interest (i.e. those which contain UMInormalized counts and are sample tagged)
+  print("Reading file...")
+  
+  count <- read.csv(file = MolsPerCell.file, sep = ',', header = TRUE, row.names = 1, check.names = FALSE, comment.char = "#")
+  
+  #traspose gene/cells
+  count <- t(count)
+  if (verbose) {
+    print("Counts rownames:")
+    print(head(rownames(count)))
+    print("Counts colnames:")
+    print(head(colnames(count)))
+  }
+  
+  #Create Seurat
+  Seurat.object <- CreateSeuratObject(counts = count, min.cells = min.cells, min.features = min.features, project = project.name)
+  print(Seurat.object)
+
+  if (show.plots==TRUE){
+    hist(colSums(Seurat.object@assays$RNA@counts), main=project.name, breaks = 50)
+  }
+  return(Seurat.object)
+}
+
+plot.depth.seq <- function(Seurat.object, metadata.col) {
+  #metadata.col need to be a metadata column in Seurat.object@meta.data
+  
+  Idents(Seurat.object) <- metadata.col
+  libs = unique(Idents(Seurat.object))
+  
+  for (i in 1:length(libs)) {
+    lib.seurat = subset(Seurat.object, idents = libs[i])
+
+    colSums.counts = as.data.frame(colSums(lib.seurat@assays$RNA@counts))
+    colSums.counts$colSums <- colSums.counts$`colSums(lib.seurat@assays$RNA@counts)`
+    colSums.counts$`colSums(lib.seurat@assays$RNA@counts)` <- NULL
+    #print(colnames(colSums.counts))
+    a=ggplot(colSums.counts, aes(x=colSums))+ geom_histogram(color="black", fill="white", bins=50) + ggtitle(libs[[i]])
+    b=ggplot(colSums.counts, aes(x=colSums))+ geom_histogram(color="black", fill="white", bins=50, aes(y=..density..))+geom_density(alpha=.2, fill="#FF6666") + ggtitle(libs[[i]])
+    print(a+b)
+    #print(ggplot(colSums.counts, aes(x=colSums)) + geom_histogram(color="black", fill="white", bins=50, aes(y=..density..)) + geom_density(alpha=.2, fill="#FF6666") + ggtitle(unique(Idents(libs[[i]]))))
+  }
 }
 
 #Generic form
