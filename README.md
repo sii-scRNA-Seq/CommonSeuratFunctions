@@ -120,7 +120,7 @@ this function creates a proper metadata table with cell barcodeID and add it to 
 Of course table rownames MUST match Seurat.object Idents. 
 
 ```
-Seurat.object <- make.add.meta(Seurat.object, Seurat.object)
+Seurat.object <- make.add.meta(Seurat.object, metadata)
 ```
 
 ---
