@@ -82,6 +82,8 @@ This function use cellhashR to deconvolute the hashtag information and add it to
 use:
 ```
 Seurat.Object = Add.HTO(Seurat.Object,"Path/of/your/file/umi_count/")
+
+Seurat.Object <- Add.HTO(Seurat.Object, path, barcodeWhitelist, minCountPerCell = 5, methods = c("bff_cluster", "multiseq","dropletutils"), datatypeName = NULL)
 ```
 
 ---
@@ -178,6 +180,22 @@ show.plots = TRUE				whether show or not some readcounts plot
 
 Starting from a seurat object, plot the depth  of sequencing (splitted for a specific metadata column) 
 
+use:
+
 ```
 plot.depth.seq(Seurat.object, metadata.col)
 ```
+
+### 
+
+Mark cells with low/high nFeature, nCount.high, mt genes...
+
+use:
+
+```
+Seurat.object <- Mark.cells(Seurat.object, nFeature.low = 250, nFeature.high = 5000, mt.high = 25, nCount.high = 18000)
+```
+
+Known issues, to improve:
+
+this function works on "percent.mt", "nFeature_RNA" and "nCount_RNA" metadata columns...need to be more flexible, accept other names...
