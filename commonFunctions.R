@@ -165,12 +165,16 @@ Add.ADT <- function(Seurat.Object, ADT.folder.path, replace.any=FALSE, verbose=F
   return(Seurat.Object)
 }
 
-extract.HTO <- function(path, barcodeWhitelist, minCountPerCell = 5, methods = c("bff_cluster", "multiseq","dropletutils")) {
+extract.HTO <- function(path, barcodeWhitelist, minCountPerCell = 5, methods = c("bff_cluster", "multiseq","dropletutils"), datatypeName = NULL) {
 	#Use:
 	#> my.HTO.table <- extract.HTO("/mypath/", c("HTO1","HTO6")))
   
+  #once Scott update the package version on todata3 I can uncomment this
+  #if (utils::packageVersion("cellhashR")<"1.0.4") {
+  #  stop("cellhashR version = or > 1.0.4 needed")
+  #}
   print("Process Count Matrix...")
-	barcodeData <- cellhashR::ProcessCountMatrix(rawCountData = path, minCountPerCell = minCountPerCell, barcodeWhitelist = barcodeWhitelist)
+	barcodeData <- cellhashR::ProcessCountMatrix(rawCountData = path, minCountPerCell = minCountPerCell, barcodeWhitelist = barcodeWhitelist, datatypeName = datatypeName)
 	print("Generate Cell Hashing Calls...")
 	calls.HTO <- cellhashR::GenerateCellHashingCalls(barcodeMatrix = barcodeData, methods = methods)
 
@@ -185,11 +189,11 @@ extract.HTO <- function(path, barcodeWhitelist, minCountPerCell = 5, methods = c
 	return(HTOtable)
 }
 
-Add.HTO <- function(Seurat.Object, path, barcodeWhitelist, minCountPerCell = 5, methods = c("bff_cluster", "multiseq","dropletutils")) {
+Add.HTO <- function(Seurat.Object, path, barcodeWhitelist, minCountPerCell = 5, methods = c("bff_cluster", "multiseq","dropletutils"), datatypeName = NULL) {
 	#Add HTO table to your Seurat object
 	#Use:
 	#> Seurat.Object <- (Seurat.Object, "/mypath/HTO_folder/", c("HTO1","HTO6")))
-	HTOtable <- extract.HTO(path, barcodeWhitelist, minCountPerCell = minCountPerCell, methods = methods)
+	HTOtable <- extract.HTO(path, barcodeWhitelist, minCountPerCell = minCountPerCell, methods = methods, datatypeName = datatypeName)
 	Seurat.Object <- SeuratObject::AddMetaData(Seurat.Object, HTOtable)
 	return(Seurat.Object)
 }
@@ -264,6 +268,7 @@ SoupX.on.Seurat <- function(Seurat.object, cellranger.folder, min.cells = 5, min
   adj.matrix = SoupX::adjustCounts(sc, roundToInt = T)
   
   New.Seurat.object = Seurat::CreateSeuratObject(counts = adj.matrix, min.cells = 5, min.features = 50, meta.data = meta)
+  Idents(New.Seurat.object) <- "seurat_clusters"
   return(New.Seurat.object)
 }
 
@@ -417,6 +422,32 @@ plot.depth.seq <- function(Seurat.object, metadata.col) {
     print(a+b)
     #print(ggplot(colSums.counts, aes(x=colSums)) + geom_histogram(color="black", fill="white", bins=50, aes(y=..density..)) + geom_density(alpha=.2, fill="#FF6666") + ggtitle(unique(Idents(libs[[i]]))))
   }
+}
+
+Mark.cells <- function(Seurat.object, nFeature.low = 250, nFeature.high = 5000, mt.high = 25, nCount.high = 18000) {
+  #Mark low QC cells instead of remove them
+  
+  poscells.high.mt <- WhichCells(Seurat.object, expression = percent.mt > mt.high)
+  Seurat.object$high.mt<- ifelse(colnames(Seurat.object) %in% poscells.high.mt, "Pos", "Neg")
+  print("high mt cells:")
+  print(table(Seurat.object$high.mt))
+  
+  poscells.high.ft <- WhichCells(Seurat.object, expression = nFeature_RNA > nFeature.high)
+  Seurat.object$high.nFeature <- ifelse(colnames(Seurat.object) %in% poscells.high.ft, "Pos", "Neg")
+  print("high nFeature cells:")
+  print(table(Seurat.object$high.nFeature))
+  
+  poscells.low.ft <- WhichCells(Seurat.object, expression = nFeature_RNA < nFeature.low)
+  Seurat.object$low.nFeature <- ifelse(colnames(Seurat.object) %in% poscells.low.ft, "Pos", "Neg")
+  print("low nFeature cells:")
+  print(table(Seurat.object$low.nFeature))
+  
+  poscells.high.nc <- WhichCells(Seurat.object, expression = nCount_RNA > nCount.high)
+  Seurat.object$high.nCount <- ifelse(colnames(Seurat.object) %in% poscells.high.nc, "Pos", "Neg")
+  print("high UMIs:")
+  print(table(Seurat.object$high.nCount))
+  
+  return(Seurat.object)
 }
 
 #Generic form
